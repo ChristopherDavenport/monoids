@@ -34,7 +34,24 @@ lazy val docs = project
 val catsV = "2.3.1"
 
 val kindProjectorV = "0.11.2"
-val betterMonadicForV = "0.3.1"
+
+val Scala212 = "2.12.12"
+val Scala213 = "2.13.4"
+val Scala3 = Seq("3.0.0-M2", "3.0.0-M3")
+
+ThisBuild / crossScalaVersions := Seq(Scala212, Scala213) ++ Scala3
+ThisBuild / scalaVersion := Scala213
+ThisBuild / organization := "org.typelevel"
+
+ThisBuild / githubWorkflowPublishTargetBranches := Seq()
+ThisBuild / githubWorkflowJavaVersions := Seq("adopt@1.8", "adopt@1.11", "adopt@1.15")
+ThisBuild / githubWorkflowBuild := Seq(
+  WorkflowStep
+    .Sbt(List("scalafmtCheckAll", "scalafmtSbtCheck"), name = Some("Check formatting")),
+  WorkflowStep.Sbt(List("test:compile"), name = Some("Compile")),
+  WorkflowStep.Sbt(List("test"), name = Some("Run tests")),
+  WorkflowStep.Sbt(List("doc"), name = Some("Build docs"))
+)
 
 lazy val contributors = Seq(
   "ChristopherDavenport" -> "Christopher Davenport"
@@ -42,25 +59,26 @@ lazy val contributors = Seq(
 
 // General Settings
 lazy val commonSettings = Seq(
-  organization := "io.chrisdavenport",
-  scalaVersion := "2.13.3",
-  crossScalaVersions := Seq("2.12.11", scalaVersion.value),
-  scalacOptions ++= Seq("-Yrangepos", "-language:higherKinds"),
-  addCompilerPlugin(
-    "org.typelevel" % "kind-projector" % kindProjectorV cross CrossVersion.full
+  libraryDependencies ++= (
+    if (isDotty.value) Nil
+    else
+      Seq(
+        compilerPlugin(
+          ("org.typelevel" %% "kind-projector" % kindProjectorV).cross(CrossVersion.full)
+        )
+      )
   ),
-  addCompilerPlugin("com.olegpy" %% "better-monadic-for" % betterMonadicForV),
   libraryDependencies ++= Seq(
     "org.typelevel" %%% "cats-core"        % catsV,
-    "org.typelevel" %%% "cats-testkit"     % catsV    % Test,
-    "org.typelevel" %%% "discipline-munit" % "1.0.4"  % Test
+    "org.typelevel" %%% "cats-testkit"     % catsV   % Test,
+    "org.typelevel" %%% "discipline-munit" % "1.0.4" % Test
   ),
-  testFrameworks += new TestFramework("munit.Framework")
+  testFrameworks += new TestFramework("munit.Framework"),
+  Compile / doc / sources := { if (isDotty.value) Seq() else (Compile / doc / sources).value }
 )
 
 inThisBuild(
   List(
-    organization := "io.chrisdavenport",
     homepage := Some(url("https://github.com/ChristopherDavenport/monoids")),
     licenses += ("MIT", url("http://opensource.org/licenses/MIT")),
     developers := {
